@@ -48,7 +48,7 @@ class ObjectDetector:
             feed_dict={self.image_tensor: image_np_expanded})
         end_time = time.time()
 
-        print("Elapsed Time:", end_time-start_time)
+        # print("Elapsed Time:", end_time-start_time)
 
         im_height, im_width, _ = image.shape
         boxes_list = [None for i in range(boxes.shape[1])]
