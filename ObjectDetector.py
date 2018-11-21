@@ -4,7 +4,7 @@ import cv2
 import time
 from collections import namedtuple
 
-CvColor = namedtuple('CvColor', 'r g b')
+CvColor = namedtuple('CvColor', 'b g r')
 BLUE = CvColor(255, 0, 0)
 GREEN = CvColor(0, 255, 0)
 RED = CvColor(0, 0, 255)
@@ -63,7 +63,7 @@ class ObjectDetector:
 
     def close(self):
         self.sess.close()
-        self.default_graph.close()
+        # self.default_graph.close()
 
 
 if __name__ == "__main__":
