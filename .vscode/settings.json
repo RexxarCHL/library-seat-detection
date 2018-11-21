@@ -1,3 +1,9 @@
 {
-    "python.pythonPath": "/home/rexxarchl/anaconda3/envs/cv_env/bin/python"
+    "python.pythonPath": "/home/rexxarchl/anaconda3/envs/cv_env/bin/python",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args":[
+        "--max-line-length=120"
+    ]
 }
