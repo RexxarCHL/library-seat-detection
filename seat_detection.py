@@ -10,7 +10,7 @@ from seat_utils import CvColor, calculate_overlap_percentage
 
 def _parse_args():
     """Read CLI arguments"""
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Library seat status detection using more traditional computer vision methods.")
     parser.add_argument("--video", type=str, default=os.path.expanduser("~/src/cv_project/video/MVI_0993.MP4"),
                         help="Path to the video to run seat detection.")
     parser.add_argument("--seat-bb-csv", type=str, default="seat_bb.csv",

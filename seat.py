@@ -48,13 +48,14 @@ class Seat:
     def person_detected(self):
         '''Increment counter when a person is detected in the frame. Transition if conditions are met'''
         self.skip_counter = 0
-        if self.status is not SeatStatus.OCCUPIED:
+        if self.status is SeatStatus.EMPTY:
             self.person_in_frame_counter += 1
             if self.person_in_frame_counter == self.TRANSITION_FRAMES_THRESHOLD:
                 self.become_occupied()
-        else:
-            # if self.skip_counter < self.MAX_SKIP_FRAMES:
-            #     self.skip_counter += 1
+        elif self.status is SeatStatus.ON_HOLD:
+            # TODO
+            pass
+        else:  # SeatStatus.OCCUPIED
             if self.person_in_frame_counter < self.MAX_EMPTY_FRAMES:
                 self.person_in_frame_counter = self.MAX_EMPTY_FRAMES
 
@@ -69,10 +70,14 @@ class Seat:
         #     if self.empty_seat_counter > self.TRANSITION_FRAMES_THRESHOLD:
         #         self.become_empty()
         if self.status is not SeatStatus.EMPTY:
-            self.person_in_frame_counter -= 1
-            if self.person_in_frame_counter == 0:
-                self.become_empty()
-        else:
+            leftover_obj_bb = self.check_leftover_obj(seat_img)
+            if not leftover_obj_bb:  # No leftover objects
+                self.person_in_frame_counter -= 1
+                if self.person_in_frame_counter == 0:
+                    self.become_empty()
+            else:  # Some objects are on the seat
+                self.become_on_hold()
+        else:  # SeatStatus.EMPTY
             if self.skip_counter < self.MAX_SKIP_FRAMES:  # Debounce
                 self.skip_counter += 1
             elif self.person_in_frame_counter > 0:
@@ -91,6 +96,11 @@ class Seat:
         '''Do necessary operations for the seat to become EMPTY'''
         self.skip_counter = 0
         self.status = SeatStatus.EMPTY  # State transition
+
+    def become_on_hold(self):
+        '''Do necessary operations for the seat to become ON_HOLD'''
+        # TODO
+        self.status = SeatStatus.ON_HOLD  # State transition
 
     # def reset_counters(self):
     #     # Reset counters
