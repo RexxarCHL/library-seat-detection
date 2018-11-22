@@ -50,18 +50,25 @@ def draw_tracking_object_bounding_box(seat, img):
 
 def put_seat_status_text(seat, img):
     """Put seat status text in the image"""
+    if seat.status == SeatStatus.EMPTY:
+        color = CvColor.GREEN
+    elif seat.status == SeatStatus.OCCUPIED:
+        color = CvColor.RED
+    else:
+        color = CvColor.YELLOW
+
     cv2.putText(
         img, "Status: {}".format(seat.status),
-        (10, 10), cv2.FONT_HERSHEY_PLAIN,
-        1, CvColor.WHITE)
+        (10, 15), cv2.FONT_HERSHEY_SIMPLEX,
+        0.5, color)
     cv2.putText(
         img, "Person in frame: {}".format(seat.person_in_frame_counter),
-        (10, 20), cv2.FONT_HERSHEY_PLAIN,
-        1, CvColor.WHITE)
+        (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
+        0.5, color)
     cv2.putText(
         img, "Skip: {}".format(seat.skip_counter),
-        (10, 30), cv2.FONT_HERSHEY_PLAIN,
-        1, CvColor.WHITE)
+        (10, 45), cv2.FONT_HERSHEY_SIMPLEX,
+        0.5, color)
 
 
 def draw_seat_seatus_box(seat, frame):
@@ -73,7 +80,7 @@ def draw_seat_seatus_box(seat, frame):
     else:
         color = CvColor.YELLOW
 
-    cv2.rectangle(frame, (x0, y0), (x1, y1), color, 2)
+    cv2.rectangle(frame, (x0, y0), (x1, y1), color, 1)
 
 
 def rectangle_area(coordinates):
