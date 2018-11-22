@@ -106,3 +106,19 @@ def rectangle_overlap(a, b):
         width = min(a_x1, b_x1) - max(a_x0, b_x0)
         height = min(a_y1, b_y1) - max(a_y0, b_y0)
         return width * height
+
+
+def calculate_overlap_percentage(rect1, rect2, rect1_area=None, rect2_area=None):
+    '''Calculate overlap percentage of the two rectangles'''
+    if rect1_area is None:
+        rect1_area = rectangle_area(rect1)
+    if rect2_area is None:
+        rect2_area = rectangle_area(rect2)
+
+    overlap_area = rectangle_overlap(rect1, rect2)
+    if overlap_area == 0:
+        # No overlap
+        return 0.0
+    else:
+        # Overlap percentage = overlap / (rect1 + rect2 - overlap)
+        return overlap_area / (rect1_area + rect2_area - overlap_area)

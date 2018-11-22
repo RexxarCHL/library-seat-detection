@@ -5,7 +5,7 @@ import cv2
 import seat_utils
 from object_detector import ObjectDetector
 from seat import Seat
-from seat_utils import CvColor
+from seat_utils import CvColor, calculate_overlap_percentage
 
 
 def _parse_args():
@@ -55,31 +55,59 @@ def main(args):
         seats.append(Seat(initial_background=frame[y0:y1, x0:x1], bb_coordinates=seat_bounding_boxes[seat]))
     SEAT_OVERLAP_THRESHOLD = 0.3
 
+    # # Detect whether there is humen in the initial background
+    # boxes, scores, classes, num = obj_detector.processFrame(frame)  # Feed the image frame through the network
+    # detected_person_bounding_boxes = []
+    # detected_chair_bounding_boxes = []
+    # for i, box in enumerate(boxes):
+    #     # Class 1 is "person"
+    #     if classes[i] == 1 and scores[i] > OBJ_DETECTION_THRESHOLD:
+    #         detected_person_bounding_boxes += [(box[1], box[0], box[3], box[2])]
+    # seat_img = [None for _ in range(num_seats)]
+    # for seat_id, this_seat in enumerate(seats):
+    #     this_seat_img = this_seat.get_seat_image(frame)  # Crop the image to seat bounding box
+    #     # Calculate overlap of the seat with each person bounding box
+    #     for person_bb in detected_person_bounding_boxes:
+    #         overlap_percentage = calculate_overlap_percentage(this_seat.bb_coordinates, person_bb, this_seat.bb_area)
+    #         if overlap_percentage > 0.0:
+    #             # Human detected in the first frame in the seat bounding box!
+    #             this_seat.person_in_background = True
+    #             break  # Person detected in the seat, no need to check other boxes
+
     # Start the seat detection
     while True:
         success, frame = cap.read()  # Read the next frame
+        draw_frame = frame.copy()
+
         if not success:
             break  # No more frames
 
         boxes, scores, classes, num = obj_detector.processFrame(frame)  # Feed the image frame through the network
 
-        # Detect humans in the frame and get the bounding boxes
+        # Detect humen and chairs in the frame and get the bounding boxes
         detected_person_bounding_boxes = []
+        detected_chair_bounding_boxes = []
         for i, box in enumerate(boxes):
             # Class 1 is "person"
             if classes[i] == 1 and scores[i] > OBJ_DETECTION_THRESHOLD:
                 detected_person_bounding_boxes += [(box[1], box[0], box[3], box[2])]
                 # Visualize
-                seat_utils.draw_box_and_text(frame, "human: {:.2f}".format(scores[i]), box, CvColor.BLUE)
+                seat_utils.draw_box_and_text(draw_frame, "human: {:.2f}".format(scores[i]), box, CvColor.BLUE)
+
+            elif classes[i] == 62 and scores[i] > OBJ_DETECTION_THRESHOLD:
+                detected_chair_bounding_boxes += [(box[1], box[0], box[3], box[2])]
+                # Visualize
+                seat_utils.draw_box_and_text(draw_frame, "chair: {:.2f}".format(scores[i]), box, CvColor.YELLOW)
 
         seat_img = [None for _ in range(num_seats)]
         for seat_id, this_seat in enumerate(seats):
             this_seat_img = this_seat.get_seat_image(frame)  # Crop the image to seat bounding box
+            draw_img = this_seat.get_seat_image(draw_frame)
 
             # Calculate overlap of the seat with each person bounding box
             person_detected = False
             for person_bb in detected_person_bounding_boxes:
-                overlap_percentage = this_seat.calculate_overlap_percentage(person_bb)
+                overlap_percentage = calculate_overlap_percentage(this_seat.bb_coordinates, person_bb, this_seat.bb_area)
                 if overlap_percentage > SEAT_OVERLAP_THRESHOLD:
                     # if seat_id == 1:
                     #     from utils import rectangle_area, rectangle_overlap
@@ -97,20 +125,28 @@ def main(args):
             if person_detected:
                 this_seat.person_detected()
             else:
-                this_seat.no_person_detected()
+                this_seat.no_person_detected(this_seat_img)
+                bounding_rect = this_seat.check_leftover_obj(this_seat_img)
+                if bounding_rect:
+                    [cv2.rectangle(draw_img, (x0, y0), (x1, y1), (0, 0, 0), 2) for x0, y0, x1, y1 in bounding_rect]
+                else:
+                    this_seat.update_background(this_seat_img)
 
             # Put the seat status in the cropped image
-            seat_utils.put_seat_status_text(this_seat, this_seat_img)
-            seat_img[seat_id] = this_seat_img
+            bg = this_seat.bg_subtractor.apply(this_seat_img)
+            bg = cv2.cvtColor(bg, cv2.COLOR_GRAY2BGR)
+            cv2.addWeighted(bg, 0.2, draw_img, 0.8, 0, draw_img)
+            seat_utils.put_seat_status_text(this_seat, draw_img)
+            seat_img[seat_id] = draw_img
 
-        # SEE_SEAT = 1
-        # cv2.imshow("seat{}".format(SEE_SEAT), seat_img[SEE_SEAT])
+        SEE_SEAT = 1
+        cv2.imshow("seat{}".format(SEE_SEAT), seats[SEE_SEAT].bg_subtractor.apply(seats[SEE_SEAT].get_seat_image(frame)))
 
-        img = np.copy(frame)
+        # img = np.copy(frame)
         for seat in range(num_seats):
             x0, y0, x1, y1 = seat_bounding_boxes[seat]
-            img[y0:y1, x0:x1] = seat_img[seat]
-        cv2.imshow("Preview", img)
+            draw_frame[y0:y1, x0:x1] = seat_img[seat]
+        cv2.imshow("Preview", draw_frame)
         key = cv2.waitKey(1)
         if key & 0xFF == ord('q'):
             break
