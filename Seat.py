@@ -1,12 +1,6 @@
 import numpy as np
 import cv2
-from enum import Enum
-
-
-class SeatStatus(Enum):
-    EMPTY = 0
-    ON_HOLD = 1
-    OCCUPIED = 2
+from utils import rectangle_overlap, rectangle_area, SeatStatus
 
 
 class Seat:
@@ -17,7 +11,8 @@ class Seat:
             bb_coordinates: bounding box coordinates (x0, y0, x1, y1)
         '''
         self.status = SeatStatus.EMPTY  # Status of the seat. One of EMPTY, ON_HOLD, or OCCUPIED
-        self.bb_coordinates = bb_coordinates  # Bounding box coordinates in the full frame
+        self.bb_coordinates = tuple(bb_coordinates)  # Bounding box coordinates in the full frame
+        self.bb_area = rectangle_area(bb_coordinates)
 
         self.trackers = [  # Trackers for tracking objects for seats that are ON_HOLD
             cv2.TrackerMOSSE_create(),
@@ -32,8 +27,8 @@ class Seat:
         self.empty_seat_counter = 0  # Counter the increments if the seat is empty, i.e. no person or objects detected
         self.skip_counter = 0  # Track skipped frames for handling bouncing detection boxes
         self.MAX_SKIP_FRAMES = 30  # Maximum frames allowed before counters reset
-        self.MAX_EMPTY_FRAMES = 450
-        self.TRANSITION_FRAMES_THRESHOLD = 300  # Frames needed for state transition
+        self.MAX_EMPTY_FRAMES = 200
+        self.TRANSITION_FRAMES_THRESHOLD = 100  # Frames needed for state transition
 
         self.background = initial_background
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2()
@@ -45,12 +40,15 @@ class Seat:
 
     def person_detected(self):
         '''Increment counter when a person is detected in the frame. Transition if conditions are met'''
+        self.skip_counter = 0
         if self.status is not SeatStatus.OCCUPIED:
             self.person_in_frame_counter += 1
             if self.person_in_frame_counter == self.TRANSITION_FRAMES_THRESHOLD:
                 self.become_occupied()
         else:
-            if self.person_in_frame_counter <= self.MAX_EMPTY_FRAMES:
+            # if self.skip_counter < self.MAX_SKIP_FRAMES:
+            #     self.skip_counter += 1
+            if self.person_in_frame_counter < self.MAX_EMPTY_FRAMES:
                 self.person_in_frame_counter += 1
 
     def no_person_detected(self):
@@ -67,23 +65,30 @@ class Seat:
             self.person_in_frame_counter -= 1
             if self.person_in_frame_counter == 0:
                 self.become_empty()
+        else:
+            if self.skip_counter < self.MAX_SKIP_FRAMES:  # Debounce
+                self.skip_counter += 1
+            elif self.person_in_frame_counter > 0:
+                self.person_in_frame_counter -= 1
 
     def become_occupied(self):
         '''Do necessary operations for the seat to become OCCUPIED'''
         # self.reset_counters()
         self.person_in_frame_counter = self.MAX_EMPTY_FRAMES
+        self.skip_counter = 0
         self.status = SeatStatus.OCCUPIED  # State transition
 
     def become_empty(self):
         '''Do necessary operations for the seat to become EMPTY'''
         # self.reset_counters()
+        self.skip_counter = 0
         self.status = SeatStatus.EMPTY  # State transition
 
-    def reset_counters(self):
-        # Reset counters
-        self.person_in_frame_counter = 0
-        self.empty_seat_counter = 0
-        self.skip_counter = 0
+    # def reset_counters(self):
+    #     # Reset counters
+    #     self.person_in_frame_counter = 0
+    #     self.empty_seat_counter = 0
+    #     self.skip_counter = 0
 
     def check_chair_tracking(self, seat_img, chair_bb):
         '''Check if the traker for chair have drifted'''
@@ -155,3 +160,15 @@ class Seat:
         if img.shape != self.background.shape:
             raise ValueError("update_background: Incoming img and stored background must match dimensions.")
         self.background = img
+
+    def calculate_overlap_percentage(self, target_bb):
+        '''Calculate overlap percentage of the seat bounding box and target bounding box'''
+        overlap_area = rectangle_overlap(self.bb_coordinates, target_bb)
+
+        if overlap_area == 0:
+            # No overlap
+            return 0.0
+        else:
+            # Overlap percentage = overlap / (seat + target - overlap)
+            target_area = rectangle_area(target_bb)
+            return overlap_area / (target_area + self.bb_area - overlap_area)
