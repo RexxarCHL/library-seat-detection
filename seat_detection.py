@@ -2,9 +2,10 @@ import os
 import argparse
 import numpy as np
 import cv2
-from ObjectDetector import ObjectDetector
-from Seat import Seat
-from utils import draw_box_and_text, draw_tracking_object_bounding_box, put_seat_status_text, CvColor
+import seat_utils
+from object_detector import ObjectDetector
+from seat import Seat
+from seat_utils import CvColor
 
 
 def _parse_args():
@@ -61,7 +62,7 @@ def main(args):
             break  # No more frames
 
         boxes, scores, classes, num = obj_detector.processFrame(frame)  # Feed the image frame through the network
-        
+
         # Detect humans in the frame and get the bounding boxes
         detected_person_bounding_boxes = []
         for i, box in enumerate(boxes):
@@ -69,7 +70,7 @@ def main(args):
             if classes[i] == 1 and scores[i] > OBJ_DETECTION_THRESHOLD:
                 detected_person_bounding_boxes += [(box[1], box[0], box[3], box[2])]
                 # Visualize
-                draw_box_and_text(frame, "human: {:.2f}".format(scores[i]), box, CvColor.BLUE)
+                seat_utils.draw_box_and_text(frame, "human: {:.2f}".format(scores[i]), box, CvColor.BLUE)
 
         seat_img = [None for _ in range(num_seats)]
         for seat_id, this_seat in enumerate(seats):
@@ -97,9 +98,9 @@ def main(args):
                 this_seat.person_detected()
             else:
                 this_seat.no_person_detected()
-            
+
             # Put the seat status in the cropped image
-            put_seat_status_text(this_seat, this_seat_img)
+            seat_utils.put_seat_status_text(this_seat, this_seat_img)
             seat_img[seat_id] = this_seat_img
 
         # SEE_SEAT = 1

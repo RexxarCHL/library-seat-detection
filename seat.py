@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from utils import rectangle_overlap, rectangle_area, SeatStatus
+from seat_utils import rectangle_overlap, rectangle_area, SeatStatus
 
 
 class Seat:
