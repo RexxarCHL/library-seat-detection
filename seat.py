@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 from seat_utils import rectangle_overlap, rectangle_area, SeatStatus
-from background_subtractor import BackgroundSubtractor
+from background_subtractor import BackgroundSubtractor, BackgroundSubtractorMOG2
 
 
 class Seat:
@@ -36,7 +36,7 @@ class Seat:
         self.background = initial_background
         self.empty_chair_bb = None
         self.current_chair_bb = None
-        self.bg_subtractor = BackgroundSubtractor(initial_background, 50, 0.99)
+        self.bg_subtractor = BackgroundSubtractorMOG2(initial_background)
         # self.OCCUPIED_PERCENTAGE = 0.3
         self.CONTOUR_AREA_THRESHOLD = 2500
 
@@ -151,13 +151,25 @@ class Seat:
     #     return (ok, bbox)
 
     def update_chair_bb(self, bbox):
+        seat_x0, seat_y0, seat_x1, seat_y1 = self.bb_coordinates
+        bb_x0, bb_y0, bb_x1, bb_y1 = bbox
+
+        # Crop the chair bounding box to be within the seat bounding box
+        x0, y0 = max(seat_x0, bb_x0), max(seat_y0, bb_y0)
+        width = min(seat_x1, bb_x1) - x0
+        height = min(seat_y1, bb_y1) - y0
+        x0, y0 = x0 - seat_x0, y0 - seat_y0
+
+        bbox = x0, y0, x0+width, y0+height
+
         self.current_chair_bb = bbox
         if self.status == SeatStatus.EMPTY:
             self.empty_chair_bb = bbox
 
     def check_leftover_obj(self, seat_img):
         # TODO: Change to connected component analysis for faster execution
-        foreground = self.bg_subtractor.apply(seat_img)
+        foreground = self.bg_subtractor.get_foreground(seat_img)
+        foreground = self.ignore_chair(foreground)
         return self.bg_subtractor.get_bounding_rectangles_from_foreground(foreground, self.CONTOUR_AREA_THRESHOLD)
 
     def track_object(self, tracker_id, img, bbox):
@@ -196,6 +208,11 @@ class Seat:
 
     def update_background(self, seat_img):
         '''Update the stored background'''
-        if seat_img.shape != self.background.shape:
-            raise ValueError("update_background: Incoming img and stored background must match dimensions.")
-        self.bg_subtractor.update_background(seat_img)
+        self.bg_subtractor.apply(seat_img)
+
+    def ignore_chair(self, foreground):
+        x0, y0, x1, y1 = self.current_chair_bb
+        foreground[y0:y1, x0:x1] = 0
+        x0, y0, x1, y1 = self.empty_chair_bb
+        foreground[y0:y1, x0:x1] = 0
+        return foreground

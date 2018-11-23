@@ -5,7 +5,7 @@ import cv2
 import seat_utils
 from object_detector import ObjectDetector
 from seat import Seat
-from seat_utils import CvColor, calculate_overlap_percentage
+from seat_utils import CvColor, calculate_overlap_percentage, rectangle_overlap, rectangle_area
 from tqdm import tqdm
 
 
@@ -104,6 +104,7 @@ def main(args):
                 seat_utils.draw_box_and_text(draw_frame, "chair: {:.2f}".format(scores[i]), box, CvColor.YELLOW)
 
         seat_img = [None for _ in range(num_seats)]
+        foreground_img = [None for _ in range(num_seats)]
         for seat_id, this_seat in enumerate(seats):
             this_seat_img = this_seat.get_seat_image(frame)  # Crop the image to seat bounding box
             draw_img = this_seat.get_seat_image(draw_frame)
@@ -125,6 +126,12 @@ def main(args):
                     person_detected = True  # Enough overlap, mark as person detected in the seat
                     break  # Person detected in the seat, no need to check other boxes
 
+            for chair_bb in detected_chair_bounding_boxes:
+                overlap_area = rectangle_overlap(this_seat.bb_coordinates, chair_bb)
+                if overlap_area > rectangle_area(chair_bb)*0.7:
+                    # This chair is 70% within the seat bounding box
+                    this_seat.update_chair_bb(chair_bb)
+
             # Update the seat status
             if person_detected:
                 this_seat.person_detected()
@@ -132,14 +139,19 @@ def main(args):
                 this_seat.no_person_detected(this_seat_img)
 
             # Put the seat status in the cropped image
-            bg = this_seat.bg_subtractor.apply(this_seat_img)
-            bg = cv2.cvtColor(bg, cv2.COLOR_GRAY2BGR)
-            cv2.addWeighted(bg, 0.2, draw_img, 0.8, 0, draw_img)
+            # current_chair_bb = this_seat.current_chair_bb
+            # current_chair_bb = (current_chair_bb[1], current_chair_bb[0], current_chair_bb[3], current_chair_bb[2])
+            # seat_utils.draw_box_and_text(draw_img, "current chair", current_chair_bb, CvColor.BLACK)
+            foreground = this_seat.bg_subtractor.get_foreground(this_seat_img)
+            foreground = this_seat.ignore_chair(foreground)
+            foreground_img[seat_id] = foreground
+            foreground = cv2.cvtColor(foreground, cv2.COLOR_GRAY2BGR)
+            cv2.addWeighted(foreground, 0.3, draw_img, 0.7, 0, draw_img)
             seat_utils.put_seat_status_text(this_seat, draw_img)
             seat_img[seat_id] = draw_img
 
         SEE_SEAT = 1
-        cv2.imshow("seat{}".format(SEE_SEAT), seats[SEE_SEAT].bg_subtractor.apply(seats[SEE_SEAT].get_seat_image(frame)))
+        cv2.imshow("seat{}".format(SEE_SEAT), foreground_img[SEE_SEAT])
 
         # img = np.copy(frame)
         for seat in range(num_seats):

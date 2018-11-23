@@ -71,6 +71,43 @@ class BackgroundSubtractor:
         return self.find_bounding_rectangles(self.find_contour(foreground), area_threshold)
 
 
+class BackgroundSubtractorMOG2:
+    def __init__(self, initial_frame):
+        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(500, 128, False)
+        self.bg_subtractor.apply(cv2.GaussianBlur(initial_frame, (11, 11), 0))
+        self.kernel = np.ones((5, 5), np.uint8)
+
+    def apply(self, frame):
+        frame = cv2.GaussianBlur(frame, (11, 11), 0)
+        return self.bg_subtractor.apply(frame)
+
+    def get_foreground(self, frame):
+        frame = cv2.GaussianBlur(frame, (11, 11), 0)
+        return self.bg_subtractor.apply(frame, learningRate=0)
+
+    def find_contour(self, foreground):
+        """Find contours on the image"""
+        processed_foreground = cv2.morphologyEx(foreground, cv2.MORPH_CLOSE, self.kernel)
+        # processed_foreground = cv2.dilate(processed_foreground, self.kernel)
+
+        im2, contours, hierarchy = cv2.findContours(processed_foreground, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        return contours
+
+    def find_bounding_rectangles(self, contours, area_threshold):
+        """Find bounding rectangles whose area is bigger than given threshold"""
+        bounding_rect = []
+        for c in contours:
+            x, y, h, w = cv2.boundingRect(c)
+            if h * w < area_threshold:
+                continue
+            bounding_rect.append((x, y, x+h, y+w))
+
+        return bounding_rect
+
+    def get_bounding_rectangles_from_foreground(self, foreground, area_threshold):
+        return self.find_bounding_rectangles(self.find_contour(foreground), area_threshold)
+
+
 def main(args):
     vid_path = args.video
     if not os.path.isfile(vid_path):
@@ -81,13 +118,14 @@ def main(args):
         raise ValueError("background_subtractor: VideoCapture failed to open file {}".format(vid_path))
 
     ret, frame = cap.read()  # Read the first frame
-    bg_subtractor = BackgroundSubtractor(frame, 50, 0.99)  # Create a background subtrator object with the first frame
+    # bg_subtractor = BackgroundSubtractor(frame, 50, 0.99)  # Create a background subtrator object with the first frame
+    bg_subtractor = BackgroundSubtractorMOG2(frame)
     # bg_subtractor = cv2.createBackgroundSubtractorMOG2(100, 16, False)
 
     while True:
         ret, frame = cap.read()
 
-        bg_subtractor.update_background(frame)
+        # bg_subtractor.update_background(frame)
         foreground = bg_subtractor.apply(frame)
 
         # contours = bg_subtractor.find_contour(foreground)
@@ -96,7 +134,6 @@ def main(args):
         # bounding_rect = bg_subtractor.find_bounding_rectangles(contours, 2500)
         bounding_rect = bg_subtractor.get_bounding_rectangles_from_foreground(foreground, 2500)
         [cv2.rectangle(frame, (x0, y0), (x1, y1), (255, 0, 0), 2) for x0, y0, x1, y1 in bounding_rect]
-        
 
         cv2.imshow('frame', frame)
         cv2.imshow('foreground', foreground)
