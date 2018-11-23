@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
-from seat_utils import rectangle_overlap, rectangle_area, SeatStatus
-from background_subtractor import BackgroundSubtractor, BackgroundSubtractorMOG2
+from seat_utils import rectangle_area, SeatStatus
+from background_subtractor import BackgroundSubtractorMOG2
 
 
 class Seat:
@@ -63,14 +63,6 @@ class Seat:
 
     def no_person_detected(self, seat_img):
         '''Increment empty seat counter when a person is not present. Transition if conditions are met'''
-        # if self.status is SeatStatus.OCCUPIED:
-        #     # Probably a bouncing detection
-        #     self.skip_counter += 1
-
-        # if self.status is not SeatStatus.EMPTY:
-        #     self.empty_seat_counter += 1
-        #     if self.empty_seat_counter > self.TRANSITION_FRAMES_THRESHOLD:
-        #         self.become_empty()
         if self.status is SeatStatus.OCCUPIED:
             leftover_obj_bb = self.check_leftover_obj(seat_img)
             if not leftover_obj_bb:  # No leftover objects
@@ -113,43 +105,6 @@ class Seat:
         # TODO
         self.status = SeatStatus.ON_HOLD  # State transition
 
-    # def reset_counters(self):
-    #     # Reset counters
-    #     self.person_in_frame_counter = 0
-    #     self.empty_seat_counter = 0
-    #     self.skip_counter = 0
-
-    # def check_chair_tracking(self, seat_img, chair_bb):
-    #     '''Check if the traker for chair have drifted'''
-    #     obj_x0, obj_y0, obj_x1, obj_y1 = chair_bb
-    #     track_x0, track_y0, track_x1, track_y1 = self.chair_tracker_bb
-
-    #     # Return false if tracker bounding box is entirely within detected bounding box
-    #     if (track_x0 > obj_x0) and (track_y0 > obj_y0) and (track_x1 < obj_x1) and (track_y1 < obj_y1):
-    #         return False
-    #     return True
-
-    # def track_chair(self, seat_img, bbox):
-    #     '''Reinitialize chair tracker with a bounding box in the cropped seat image'''
-    #     self.chair_tracker = cv2.TrackerMOSSE_create()
-    #     ok = self.chair_tracker.init(seat_img, bbox)
-    #     self.chair_tracker_status = ok
-    #     self.chair_tracker_bb = bbox
-    #     print("track_chair: Reinitialize chair tracker returns {}".format(ok))
-
-    # def update_chair_tracker(self, seat_img):
-    #     ''' Update the chair tracker
-    #     # Retruns: A tuple in the form of (tracker status, bounding box) for the chair
-    #     '''
-    #     ok, (x0, y0, h, w) = self.chair_tracker.update(seat_img)
-    #     bbox = (int(x0), int(y0), int(x0+h), int(y0+w))  # Convert the bounding box coordinates to [x0, y0, x1, y1]
-
-    #     # Update internal tracker status
-    #     self.chair_tracker_bb = bbox
-    #     self.chair_tracker_status = ok
-
-    #     return (ok, bbox)
-
     def update_chair_bb(self, bbox):
         seat_x0, seat_y0, seat_x1, seat_y1 = self.bb_coordinates
         bb_x0, bb_y0, bb_x1, bb_y1 = bbox
@@ -171,40 +126,6 @@ class Seat:
         foreground = self.bg_subtractor.get_foreground(seat_img)
         foreground = self.ignore_chair(foreground)
         return self.bg_subtractor.get_bounding_rectangles_from_foreground(foreground, self.CONTOUR_AREA_THRESHOLD)
-
-    def track_object(self, tracker_id, img, bbox):
-        '''Reinitialize a tracker to track an object in the bounding box in the image
-        # Arguments:
-            tracker_id: One of {0, 1}. Index for the self.trackers array.
-            img: The image that has the object to track
-            bbox: Tuple of coordinates of the bounding box in the form of [x, y, h, w]
-        '''
-        if tracker_id > len(self.trackers) or tracker_id < 0:
-            raise ValueError("track_object: tracker_id is not valid.")
-            ok = self.trackers[tracker_id].init(img, bbox)
-            self.trackers_status[tracker_id] = ok
-            self.trackers_bb[tracker_id] = bbox
-            print("track_object: Reinitialize tracker {} returns {}".format(tracker_id, ok))
-
-    def update_trackers(self, seat_img):
-        '''Update the trackers stored in the object
-        # Arguments:
-            seat_img: Current seat image
-        # Returns: A list of tuples in the form of (tracker status, bounding box), i.e. (ok, [x0, y0, x1, y1])
-        '''
-        rv = []
-        for i, tracker in enumerate(self.trackers):
-            ok, (x0, y0, h, w) = tracker.update(seat_img)
-            bbox = (int(x0), int(y0), int(x0+h), int(y0+w))  # Convert the bounding box coordinates to [x0, y0, x1, y1]
-
-            # Update internal tracker status
-            self.trackers_bb[i] = bbox
-            self.trackers_status[i] = ok
-
-            # Append to return value
-            rv += [(ok, bbox)]
-
-        return rv
 
     def update_background(self, seat_img):
         '''Update the stored background'''

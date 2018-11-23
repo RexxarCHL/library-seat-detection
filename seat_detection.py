@@ -56,25 +56,6 @@ def main(args):
         seats.append(Seat(initial_background=frame[y0:y1, x0:x1], bb_coordinates=seat_bounding_boxes[seat]))
     SEAT_OVERLAP_THRESHOLD = 0.3
 
-    # # Detect whether there is humen in the initial background
-    # boxes, scores, classes, num = obj_detector.processFrame(frame)  # Feed the image frame through the network
-    # detected_person_bounding_boxes = []
-    # detected_chair_bounding_boxes = []
-    # for i, box in enumerate(boxes):
-    #     # Class 1 is "person"
-    #     if classes[i] == 1 and scores[i] > OBJ_DETECTION_THRESHOLD:
-    #         detected_person_bounding_boxes += [(box[1], box[0], box[3], box[2])]
-    # seat_img = [None for _ in range(num_seats)]
-    # for seat_id, this_seat in enumerate(seats):
-    #     this_seat_img = this_seat.get_seat_image(frame)  # Crop the image to seat bounding box
-    #     # Calculate overlap of the seat with each person bounding box
-    #     for person_bb in detected_person_bounding_boxes:
-    #         overlap_percentage = calculate_overlap_percentage(this_seat.bb_coordinates, person_bb, this_seat.bb_area)
-    #         if overlap_percentage > 0.0:
-    #             # Human detected in the first frame in the seat bounding box!
-    #             this_seat.person_in_background = True
-    #             break  # Person detected in the seat, no need to check other boxes
-
     progress_bar = tqdm(range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))), unit='frames')
 
     # Start the seat detection
