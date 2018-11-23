@@ -6,12 +6,13 @@ import seat_utils
 from object_detector import ObjectDetector
 from seat import Seat
 from seat_utils import CvColor, calculate_overlap_percentage
+from tqdm import tqdm
 
 
 def _parse_args():
     """Read CLI arguments"""
     parser = argparse.ArgumentParser(description="Library seat status detection using more traditional computer vision methods.")
-    parser.add_argument("--video", type=str, default=os.path.expanduser("~/src/cv_project/video/MVI_0993.MP4"),
+    parser.add_argument("--video", type=str, default=os.path.expanduser("data/output.mp4"),
                         help="Path to the video to run seat detection.")
     parser.add_argument("--seat-bb-csv", type=str, default="seat_bb.csv",
                         help="The CSV file containing bounding box coordinates.")
@@ -74,10 +75,13 @@ def main(args):
     #             this_seat.person_in_background = True
     #             break  # Person detected in the seat, no need to check other boxes
 
+    progress_bar = tqdm(range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))), unit='frames')
+
     # Start the seat detection
     while True:
         success, frame = cap.read()  # Read the next frame
         draw_frame = frame.copy()
+        progress_bar.update()
 
         if not success:
             break  # No more frames
@@ -126,11 +130,6 @@ def main(args):
                 this_seat.person_detected()
             else:
                 this_seat.no_person_detected(this_seat_img)
-                bounding_rect = this_seat.check_leftover_obj(this_seat_img)
-                if bounding_rect:
-                    [cv2.rectangle(draw_img, (x0, y0), (x1, y1), (0, 0, 0), 2) for x0, y0, x1, y1 in bounding_rect]
-                else:
-                    this_seat.update_background(this_seat_img)
 
             # Put the seat status in the cropped image
             bg = this_seat.bg_subtractor.apply(this_seat_img)
@@ -152,6 +151,7 @@ def main(args):
             break
 
     # Video playback ended. Clean up
+    progress_bar.close()
     obj_detector.close()
     cap.release()
     cv2.destroyAllWindows()

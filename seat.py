@@ -53,8 +53,10 @@ class Seat:
             if self.person_in_frame_counter == self.TRANSITION_FRAMES_THRESHOLD:
                 self.become_occupied()
         elif self.status is SeatStatus.ON_HOLD:
-            # TODO
-            pass
+            if self.person_in_frame_counter == self.TRANSITION_FRAMES_THRESHOLD:
+                self.become_occupied()
+            else:
+                self.person_in_frame_counter += 1
         else:  # SeatStatus.OCCUPIED
             if self.person_in_frame_counter < self.MAX_EMPTY_FRAMES:
                 self.person_in_frame_counter = self.MAX_EMPTY_FRAMES
@@ -69,7 +71,7 @@ class Seat:
         #     self.empty_seat_counter += 1
         #     if self.empty_seat_counter > self.TRANSITION_FRAMES_THRESHOLD:
         #         self.become_empty()
-        if self.status is not SeatStatus.EMPTY:
+        if self.status is SeatStatus.OCCUPIED:
             leftover_obj_bb = self.check_leftover_obj(seat_img)
             if not leftover_obj_bb:  # No leftover objects
                 self.person_in_frame_counter -= 1
@@ -77,6 +79,15 @@ class Seat:
                     self.become_empty()
             else:  # Some objects are on the seat
                 self.become_on_hold()
+        elif self.status is SeatStatus.ON_HOLD:
+            leftover_obj_bb = self.check_leftover_obj(seat_img)
+            if not leftover_obj_bb:  # No leftover objects
+                self.person_in_frame_counter -= 1
+                if self.person_in_frame_counter == 0:
+                    self.become_empty()
+            else:  # Some objects are on the seat
+                pass  # Do Nothing (maybe)
+
         else:  # SeatStatus.EMPTY
             if self.skip_counter < self.MAX_SKIP_FRAMES:  # Debounce
                 self.skip_counter += 1
@@ -145,6 +156,7 @@ class Seat:
             self.empty_chair_bb = bbox
 
     def check_leftover_obj(self, seat_img):
+        # TODO: Change to connected component analysis for faster execution
         foreground = self.bg_subtractor.apply(seat_img)
         return self.bg_subtractor.get_bounding_rectangles_from_foreground(foreground, self.CONTOUR_AREA_THRESHOLD)
 
