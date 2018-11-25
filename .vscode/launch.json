@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: Current File (Integrated Terminal)",
             "type": "python",
@@ -18,7 +19,17 @@
             "program": "${workspaceFolder}/example_tracking.py",
             "console": "integratedTerminal",
             "args": [
-                "/home/rexxarchl/src/library-seat-detection/data/MVI_0993.MP4"
+                "/home/rexxarchl/src/library-seat-detection/data/MVI_0988.MP4"
+            ]
+        },
+        {
+            "name": "seat_detection",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/seat_detection.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--video", "data/MVI_0988.MP4", "--seat-bb-csv", "seat_bb_tmp.csv"
             ]
         }
     ]

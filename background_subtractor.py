@@ -107,6 +107,21 @@ class BackgroundSubtractorMOG2:
     def get_bounding_rectangles_from_foreground(self, foreground, area_threshold):
         return self.find_bounding_rectangles(self.find_contour(foreground), area_threshold)
 
+    def get_leftover_object_mask(self, foreground, area_threshold):
+        processed_foreground = cv2.morphologyEx(foreground, cv2.MORPH_CLOSE, self.kernel)
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(processed_foreground, connectivity=4)
+
+        # return labels
+
+        matching_labels = (stats[:, cv2.CC_STAT_AREA] > area_threshold).nonzero()[0]
+        rv = np.zeros(labels.shape, dtype=np.uint8)
+        for label in matching_labels:
+            if label == 0:
+                continue
+            rv[labels == label] = 255
+        
+        return rv
+
 
 def main(args):
     vid_path = args.video
@@ -132,11 +147,26 @@ def main(args):
         # cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
 
         # bounding_rect = bg_subtractor.find_bounding_rectangles(contours, 2500)
-        bounding_rect = bg_subtractor.get_bounding_rectangles_from_foreground(foreground, 2500)
-        [cv2.rectangle(frame, (x0, y0), (x1, y1), (255, 0, 0), 2) for x0, y0, x1, y1 in bounding_rect]
+        # bounding_rect = bg_subtractor.get_bounding_rectangles_from_foreground(foreground, 2500)
+        # [cv2.rectangle(frame, (x0, y0), (x1, y1), (255, 0, 0), 2) for x0, y0, x1, y1 in bounding_rect]
+        labels = bg_subtractor.get_leftover_object_mask(foreground, 1000)
+
+        # # Map component labels to hue val
+        # label_hue = np.uint8(179*labels/np.max(labels))
+        # blank_ch = 255*np.ones_like(label_hue)
+        # labeled_img = cv2.merge([label_hue, blank_ch, blank_ch])
+
+        # # cvt to BGR for display
+        # labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_HSV2BGR)
+
+        # # set bg label to black
+        # labeled_img[label_hue==0] = 0
+
+        # cv2.imshow('labeled.png', labeled_img)
+        cv2.imshow('labeled.png', labels)
 
         cv2.imshow('frame', frame)
-        cv2.imshow('foreground', foreground)
+        # cv2.imshow('foreground', foreground)
         k = cv2.waitKey(30)
         if k == 27:
             break

@@ -8,7 +8,7 @@ if len(sys.argv) != 2:
     print('Input video name is missing')
     exit()
 
-print('Select 3 tracking targets')
+print('Select 4 tracking targets')
 
 cv.namedWindow("tracking")
 camera = cv.VideoCapture(sys.argv[1])
@@ -20,31 +20,37 @@ if not ok:
     print('Failed to read video')
     exit()
 
+bbox0 = cv.selectROI('tracking', image)
 bbox1 = cv.selectROI('tracking', image)
 bbox2 = cv.selectROI('tracking', image)
 bbox3 = cv.selectROI('tracking', image)
+bbox4 = cv.selectROI('tracking', image)
 
-while camera.isOpened():
-    ok, image = camera.read()
-    if not ok:
-        print('no image to read')
-        break
+k = np.array([bbox0, bbox1, bbox2, bbox3, bbox4])
+k = np.array([k[:, 0], k[:, 1], k[:, 0]+k[:, 2], k[:, 1]+k[:, 3]]).transpose()
+np.savetxt("seat_bb_tmp.csv", k, fmt="%s", delimiter=",")
 
-    if not init_once:
-        ok = tracker.add(cv.TrackerMOSSE_create(), image, bbox1)
-        ok = tracker.add(cv.TrackerMOSSE_create(), image, bbox2)
-        ok = tracker.add(cv.TrackerMOSSE_create(), image, bbox3)
-        init_once = True
+# while camera.isOpened():
+#     ok, image = camera.read()
+#     if not ok:
+#         print('no image to read')
+#         break
 
-    ok, boxes = tracker.update(image)
-    print(ok, boxes)
+#     if not init_once:
+#         ok = tracker.add(cv.TrackerMOSSE_create(), image, bbox1)
+#         ok = tracker.add(cv.TrackerMOSSE_create(), image, bbox2)
+#         ok = tracker.add(cv.TrackerMOSSE_create(), image, bbox3)
+#         init_once = True
 
-    for newbox in boxes:
-        p1 = (int(newbox[0]), int(newbox[1]))
-        p2 = (int(newbox[0] + newbox[2]), int(newbox[1] + newbox[3]))
-        cv.rectangle(image, p1, p2, (200, 0, 0))
+#     ok, boxes = tracker.update(image)
+#     print(ok, boxes)
 
-    cv.imshow('tracking', image)
-    k = cv.waitKey(1)
-    if k == 27:
-        break  # esc pressed
+#     for newbox in boxes:
+#         p1 = (int(newbox[0]), int(newbox[1]))
+#         p2 = (int(newbox[0] + newbox[2]), int(newbox[1] + newbox[3]))
+#         cv.rectangle(image, p1, p2, (200, 0, 0))
+
+#     cv.imshow('tracking', image)
+#     k = cv.waitKey(1)
+#     if k == 27:
+#         break  # esc pressed
