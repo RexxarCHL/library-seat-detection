@@ -74,15 +74,16 @@ class BackgroundSubtractor:
 class BackgroundSubtractorMOG2:
     def __init__(self, initial_frame):
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(500, 128, False)
-        self.bg_subtractor.apply(cv2.GaussianBlur(initial_frame, (11, 11), 0))
+        initial_frame = self.preprocess_frame(initial_frame)
+        self.bg_subtractor.apply(initial_frame)
         self.kernel = np.ones((5, 5), np.uint8)
 
     def apply(self, frame):
-        frame = cv2.GaussianBlur(frame, (11, 11), 0)
+        frame = self.preprocess_frame(frame)
         return self.bg_subtractor.apply(frame)
 
     def get_foreground(self, frame):
-        frame = cv2.GaussianBlur(frame, (11, 11), 0)
+        frame = self.preprocess_frame(frame)
         return self.bg_subtractor.apply(frame, learningRate=0)
 
     def find_contour(self, foreground):
@@ -121,6 +122,22 @@ class BackgroundSubtractorMOG2:
             rv[labels == label] = 255
         
         return rv
+
+    def preprocess_frame(self, frame):
+        # Convert to gray scale
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Normalize the frame with histogram normalizeation
+        # frame = cv2.equalizeHist(frame)
+
+        # Normalize the frame to be zero-mean
+        mean = frame.sum() / frame.size
+        frame = frame - mean
+
+        # Apply gaussian blur on the frame
+        frame = cv2.GaussianBlur(frame, (11, 11), 0)
+
+        return frame
 
 
 def main(args):
@@ -163,10 +180,10 @@ def main(args):
         # labeled_img[label_hue==0] = 0
 
         # cv2.imshow('labeled.png', labeled_img)
-        cv2.imshow('labeled.png', labels)
+        # cv2.imshow('labeled.png', labels)
 
-        cv2.imshow('frame', frame)
-        # cv2.imshow('foreground', foreground)
+        cv2.imshow('frame', cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+        cv2.imshow('foreground', foreground)
         k = cv2.waitKey(30)
         if k == 27:
             break
