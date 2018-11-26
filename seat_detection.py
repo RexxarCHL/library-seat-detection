@@ -4,8 +4,8 @@ import numpy as np
 import cv2
 import seat_utils
 from object_detector import ObjectDetector
-from seat import Seat
-from seat_utils import CvColor, calculate_overlap_percentage, rectangle_overlap, rectangle_area
+from seat import Seat, SeatStatus
+from seat_utils import CvColor, calculate_overlap_percentage, rectangle_overlap, rectangle_area, get_overlap_rectangle, draw_box_and_text
 from tqdm import tqdm
 
 
@@ -19,15 +19,14 @@ def _parse_args():
     parser.add_argument("--pretrained-model", type=str, default="models/faster_rcnn_inception_v2/frozen_inference_graph.pb",
                         help="The frozen TF model downloaded from Tensorflow detection model zoo: "
                              "https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md")
-
+    parser.add_argument("--output", type=str, default="",
+                        help="Output file name. Leave blank if no output is needed")
     args = parser.parse_args()
 
     return args
 
 
 def main(args):
-    # downsample_ratio = 2
-
     # Read in the bounding box coordinates
     if not os.path.isfile(args.seat_bb_csv):
         print("Argument seat-bb-csv is not a file: {}".format(args.seat_bb_csv))
@@ -44,9 +43,8 @@ def main(args):
     cap = cv2.VideoCapture(args.video)
     if not cap.isOpened():
         raise IOError("Failed to open video: {}".format(args.video))
-    # frame_width, frame_height = int(cap.get(3))//downsample_ratio, int(cap.get(4))//downsample_ratio
     success, frame = cap.read()  # Read the first frame
-    # frame = cv2.resize(frame, (frame_width, frame_height))
+
     if not success:
         print("Failed to read the first frame from : {}".format(args.video))
 
@@ -64,20 +62,27 @@ def main(args):
 
     progress_bar = tqdm(range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))), unit='frames')
 
-    # JUMP_TO_FRAME = 5000
+    # JUMP_TO_FRAME = 2100
     # cap.set(cv2.CAP_PROP_POS_FRAMES, JUMP_TO_FRAME)
     # progress_bar.update(JUMP_TO_FRAME)
 
-    # out = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
+    if args.output:
+        frame_width, frame_height = int(cap.get(3)), int(cap.get(4))
+        out = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
     # Start the seat detection
+    k = 0  # Skip frame counter
     while True:
         success, frame = cap.read()  # Read the next frame
         if not success:
             break  # No more frames
+        progress_bar.update()
+        # k += 1
+        # if k < 3:  # Run every three frames
+        #     continue
+        # k = 0
         # frame = cv2.resize(frame, (frame_width, frame_height))
         draw_frame = frame.copy()
-        progress_bar.update()
-
+        
         boxes, scores, classes, num = obj_detector.processFrame(frame)  # Feed the image frame through the network
 
         # Detect humen and chairs in the frame and get the bounding boxes
@@ -110,10 +115,13 @@ def main(args):
                     break  # Person detected in the seat, no need to check other boxes
 
             for chair_bb in detected_chair_bounding_boxes:
-                overlap_area = rectangle_overlap(this_seat.bb_coordinates, chair_bb)
-                if overlap_area > rectangle_area(chair_bb)*0.7:
-                    # This chair is 70% within the seat bounding box
-                    this_seat.update_chair_bb(chair_bb)
+                # overlap_area, _ = rectangle_overlap(this_seat.bb_coordinates, chair_bb)
+                # if overlap_area > rectangle_area(chair_bb)*0.7:
+                #     # This chair is 70% within the seat bounding box
+                #     this_seat.update_chair_bb(chair_bb)
+                relative_bb = get_overlap_rectangle(this_seat.bb_coordinates, chair_bb, relative=True)
+                if relative_bb is not None:
+                    this_seat.update_chair_bb(relative_bb)
 
             # Update the seat status
             if person_detected:
@@ -123,8 +131,7 @@ def main(args):
 
             # Put the seat status in the cropped image
             x0, y0, x1, y1 = this_seat.table_bb
-            foreground = this_seat.bg_subtractor.get_foreground(this_seat_img[y0:y1, x0:x1])
-            foreground = this_seat.bg_subtractor.get_leftover_object_mask(foreground, 1000)
+            foreground = this_seat.check_leftover_obj(this_seat_img, this_seat.CONTOUR_AREA_THRESHOLD)
             # foreground = this_seat.ignore_chair(foreground)
             foreground_img[seat_id] = foreground
             foreground = cv2.cvtColor(foreground, cv2.COLOR_GRAY2BGR)
@@ -139,7 +146,9 @@ def main(args):
         for seat in range(num_seats):
             x0, y0, x1, y1 = seat_bounding_boxes[seat+1]
             draw_frame[y0:y1, x0:x1] = seat_img[seat]
-        # out.write(draw_frame)
+
+        if args.output:
+            out.write(draw_frame)
         cv2.imshow("Preview", draw_frame)
         key = cv2.waitKey(1)
         if key & 0xFF == ord('q'):
@@ -149,7 +158,8 @@ def main(args):
     progress_bar.close()
     obj_detector.close()
     cap.release()
-    # out.release()
+    if args.output:
+        out.release()
     cv2.destroyAllWindows()
 
 
