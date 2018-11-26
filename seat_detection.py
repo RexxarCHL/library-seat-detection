@@ -68,7 +68,7 @@ def main(args):
 
     if args.output:
         frame_width, frame_height = int(cap.get(3)), int(cap.get(4))
-        out = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
+        out = cv2.VideoWriter(args.output, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
     # Start the seat detection
     k = 0  # Skip frame counter
     while True:
