@@ -77,6 +77,13 @@ def put_seat_status_text(seat, img):
         (10, 60), cv2.FONT_HERSHEY_SIMPLEX,
         0.5, color)
 
+    h, w, _ = img.shape
+    cv2.rectangle(
+        img,
+        (2, 2),
+        (w-2, h-2),
+        color, 2)
+
 
 def draw_seat_seatus_box(seat, frame):
     x0, y0, x1, y1 = seat.bb_coordinates
@@ -108,11 +115,12 @@ def rectangle_overlap(a, b):
 
     if a_x1 < b_x0 or b_x1 < a_x0 or a_y1 < b_y0 or b_y1 < a_y0:
         # No intersection
-        return 0
+        return 0, None
     else:
-        width = min(a_x1, b_x1) - max(a_x0, b_x0)
-        height = min(a_y1, b_y1) - max(a_y0, b_y0)
-        return width * height
+        x0, y0, x1, y1 = get_overlap_rectangle(a, b, relative=True)
+        width = x1 - x0
+        height = y1 - y0
+        return (width * height, (x0, y0, x1, y1))
 
 
 def calculate_overlap_percentage(rect1, rect2, rect1_area=None, rect2_area=None):
@@ -122,10 +130,32 @@ def calculate_overlap_percentage(rect1, rect2, rect1_area=None, rect2_area=None)
     if rect2_area is None:
         rect2_area = rectangle_area(rect2)
 
-    overlap_area = rectangle_overlap(rect1, rect2)
+    overlap_area, _ = rectangle_overlap(rect1, rect2)
     if overlap_area == 0:
         # No overlap
         return 0.0
     else:
         # Overlap percentage = overlap / (rect1 + rect2 - overlap)
         return overlap_area / (rect1_area + rect2_area - overlap_area)
+
+
+def get_overlap_rectangle(a, b, relative=False):
+    '''Get the overlapping rectangle of the two input rectangles
+    # Arguments:
+        a: Two coordinates that defines rectangle 1 in the form of (x0, y0, x1, y1)
+        b: Two coordinates that defines rectangle 2 in the form of (x0, y0, x1, y1)
+        relative: True will return the relative coordinates relative to rectangle a
+    # Returns: Two coordinates that defines rectangle 1 in the form of (x0, y0, x1, y1). None if there is no overlap.
+    '''
+    a_x0, a_y0, a_x1, a_y1 = a
+    b_x0, b_y0, b_x1, b_y1 = b
+
+    if a_x1 < b_x0 or b_x1 < a_x0 or a_y1 < b_y0 or b_y1 < a_y0:
+        # No intersection
+        return None
+
+    x0, y0, x1, y1 = max(a_x0, b_x0), max(a_y0, b_y0), min(a_x1, b_x1), min(a_y1, b_y1)
+    if not relative:
+        return x0, y0, x1, y1
+    else:
+        return x0-a_x0, y0-a_y0, x1-a_x0, y1-a_y0
