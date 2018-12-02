@@ -161,8 +161,10 @@ def main(args):
         for seat in range(num_seats):
             x0, y0, x1, y1 = seat_bounding_boxes[seat+1]
             draw_frame[y0:y1, x0:x1] = seat_img[seat]
+        
+        frame_pos = cap.get(cv2.CAP_PROP_POS_FRAMES)
 
-        if cap.get(cv2.CAP_PROP_POS_FRAMES) > VIDEO_1_FRAME_COUNT:
+        if frame_pos > VIDEO_1_FRAME_COUNT:
             seat_labels[frame_count] = this_frame_seat_labels
             frame_count += 1
 
@@ -172,6 +174,8 @@ def main(args):
         key = cv2.waitKey(1)
         if key & 0xFF == ord('q'):
             break
+
+        cv2.imwrite("img/frame_{}.jpg".format(frame_pos),  draw_frame)
 
     # Video playback ended. Clean up
     progress_bar.close()
