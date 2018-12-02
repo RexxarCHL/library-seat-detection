@@ -60,7 +60,13 @@ def main(args):
         seats.append(Seat(frame[y0:y1, x0:x1], seat_bounding_boxes[seat+1], table_bb))
     SEAT_OVERLAP_THRESHOLD = 0.3
 
-    progress_bar = tqdm(range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))), unit='frames')
+    TOTAL_FRAME_COUNT = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    VIDEO_1_FRAME_COUNT = 525.0
+    VIDEO_2_FRAME_COUNT = TOTAL_FRAME_COUNT - VIDEO_1_FRAME_COUNT
+
+    progress_bar = tqdm(range(int(TOTAL_FRAME_COUNT)), unit='frames')
+
+    seat_labels = np.full((int(VIDEO_2_FRAME_COUNT), num_seats), -1, dtype=int)
 
     # JUMP_TO_FRAME = 2100
     # cap.set(cv2.CAP_PROP_POS_FRAMES, JUMP_TO_FRAME)
@@ -70,7 +76,8 @@ def main(args):
         frame_width, frame_height = int(cap.get(3)), int(cap.get(4))
         out = cv2.VideoWriter(args.output, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
     # Start the seat detection
-    k = 0  # Skip frame counter
+    # k = 0  # Skip frame counter
+    frame_count = 0
     while True:
         success, frame = cap.read()  # Read the next frame
         if not success:
@@ -82,7 +89,7 @@ def main(args):
         # k = 0
         # frame = cv2.resize(frame, (frame_width, frame_height))
         draw_frame = frame.copy()
-        
+
         boxes, scores, classes, num = obj_detector.processFrame(frame)  # Feed the image frame through the network
 
         # Detect humen and chairs in the frame and get the bounding boxes
@@ -100,6 +107,9 @@ def main(args):
                 # Visualize
                 seat_utils.draw_box_and_text(draw_frame, "chair: {:.2f}".format(scores[i]), box, CvColor.YELLOW)
 
+        # Store the seat status for comparison with ground truth
+        this_frame_seat_labels = np.full(num_seats, -1, dtype=int)
+        # Store the seat images for visualization
         seat_img = [None for _ in range(num_seats)]
         foreground_img = [None for _ in range(num_seats)]
         for seat_id, this_seat in enumerate(seats):
@@ -109,7 +119,10 @@ def main(args):
             # Calculate overlap of the seat with each person bounding box
             person_detected = False
             for person_bb in detected_person_bounding_boxes:
-                overlap_percentage = calculate_overlap_percentage(this_seat.bb_coordinates, person_bb, this_seat.bb_area)
+                overlap_percentage = calculate_overlap_percentage(
+                                        this_seat.bb_coordinates,
+                                        person_bb,
+                                        this_seat.bb_area)
                 if overlap_percentage > SEAT_OVERLAP_THRESHOLD:
                     person_detected = True  # Enough overlap, mark as person detected in the seat
                     break  # Person detected in the seat, no need to check other boxes
@@ -139,13 +152,19 @@ def main(args):
             seat_utils.put_seat_status_text(this_seat, draw_img)
             seat_img[seat_id] = draw_img
 
+            # Store status for this seat
+            this_frame_seat_labels[seat_id] = this_seat.status.value
+
         # SEE_SEAT = 1
         # cv2.imshow("seat{}".format(SEE_SEAT), foreground_img[SEE_SEAT])
 
-        # img = np.copy(frame)
         for seat in range(num_seats):
             x0, y0, x1, y1 = seat_bounding_boxes[seat+1]
             draw_frame[y0:y1, x0:x1] = seat_img[seat]
+
+        if cap.get(cv2.CAP_PROP_POS_FRAMES) > VIDEO_1_FRAME_COUNT:
+            seat_labels[frame_count] = this_frame_seat_labels
+            frame_count += 1
 
         if args.output:
             out.write(draw_frame)
@@ -161,6 +180,9 @@ def main(args):
     if args.output:
         out.release()
     cv2.destroyAllWindows()
+
+    # Store the labels for seats
+    np.savetxt("labels.csv", seat_labels, fmt="%s", delimiter=',', header='seat0,seat1,seat2,seat3')
 
 
 if __name__ == "__main__":

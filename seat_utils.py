@@ -52,16 +52,13 @@ def put_seat_status_text(seat, img):
     """Put seat status text in the image"""
     if seat.status == SeatStatus.EMPTY:
         color = CvColor.GREEN
-        status = "EMPTY"
     elif seat.status == SeatStatus.OCCUPIED:
         color = CvColor.RED
-        status = "OCCUPIED"
     else:
         color = CvColor.YELLOW
-        status = "ON_HOLD"
 
     cv2.putText(
-        img, "Status: {}".format(status),
+        img, "Status: {}".format(seat.status.name),
         (10, 15), cv2.FONT_HERSHEY_SIMPLEX,
         0.5, color)
     cv2.putText(
