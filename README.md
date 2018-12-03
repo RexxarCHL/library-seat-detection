@@ -1,4 +1,7 @@
-# Seat Status Detection in Library (EN530.661 Computer Vision Final Project)
+# Seat Status Detection in Library
+
+This is a final project for EN530.461/661 Computer Vision Fall/Winter 2018.
+In collaboration with Morgan Hobson(@MorganTHobson), Ruiqing Yin(@RuiYinRay)
 
 ## Background
 Library seats are a scarce resource. As final exam season starts, a large proportion of students choose to study in the library. However, as students spread out among the maze of levels, locating a vacant seat can become an arduous task. Students also often leave their belongings in a seat to mark it as occupied. This greatly reduces the utilization of available seats. We propose a seat occupancy detection system that leverages existing surveillance camera infrastructure and uses CV techniques in the library to map which seats are available.
