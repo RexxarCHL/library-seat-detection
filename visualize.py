@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 
 labels_detection = np.genfromtxt("detection_labels.csv", dtype=int, delimiter=",")
 ground_truth = np.genfromtxt("ground_truth_labels.csv", dtype=int, delimiter=",")
+labels_e2e = np.genfromtxt("e2e_labels.csv", dtype=float)
+labels_e2e = np.array([labels_e2e[:8564], labels_e2e[8564:8564*2],
+                       labels_e2e[8564*2:8564*3], labels_e2e[8564*3:]]).T.astype(int)
 
 # SEE_SEAT = 0
 # data = [ground_truth[:, SEE_SEAT],
@@ -28,7 +31,8 @@ num_rows = 2
 
 for seat in range(4):
     data = [ground_truth[:, seat],
-            labels_detection[:, seat]]
+            # labels_detection[:, seat],
+            labels_e2e[:, seat]]
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
