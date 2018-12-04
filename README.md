@@ -1,6 +1,7 @@
 # Seat Status Detection in Library
 
 This is a final project for EN530.461/661 Computer Vision Fall/Winter 2018.
+
 In collaboration with Morgan Hobson(@MorganTHobson), Ruiqing Yin(@RuiYinRay)
 
 ## Background
